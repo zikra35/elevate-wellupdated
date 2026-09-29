@@ -1,0 +1,39 @@
+{
+  "extends": ["stylelint-config-tailwindcss"],
+  "customSyntax": "postcss-syntax",
+  "rules": {
+    "at-rule-no-unknown": [
+      true,
+      {
+        "ignoreAtRules": [
+          "tailwind",
+          "apply",
+          "variants",
+          "responsive",
+          "screen",
+          "layer",
+          "import",
+          "source",
+          "custom-variant",
+          "theme",
+          "supports",
+          "font-face",
+          "keyframes",
+          "media",
+          "document",
+          "namespace",
+          "page",
+          "property"
+        ]
+      }
+    ],
+    "function-no-unknown": null,
+    "selector-pseudo-element-no-unknown": [
+      true,
+      {
+        "ignorePseudoElements": [":deep", ":slotted", ":is", ":where"]
+      }
+    ]
+  }
+}
+

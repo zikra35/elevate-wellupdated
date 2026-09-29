@@ -1,0 +1,195 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "leaflet/dist/leaflet.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-teal: var(--teal);
+  --color-coral: var(--coral);
+
+  --shadow-neumorphic: var(--shadow-neumorphic);
+  --shadow-neumorphic-inset: var(--shadow-neumorphic-inset);
+  --shadow-neumorphic-sm: var(--shadow-neumorphic-sm);
+  --shadow-neumorphic-inset-sm: var(--shadow-neumorphic-inset-sm);
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Plus Jakarta Sans', 'Inter', ui-sans-serif, sans-serif;
+}
+
+:root {
+  --radius: 1rem;
+
+  /* Light Theme — Warm, approachable wellness palette */
+  --background: #F5F0EB;
+  --foreground: #2C2C2C;
+
+  --card: #FFFFFF;
+  --card-foreground: #2C2C2C;
+
+  --popover: #FFFFFF;
+  --popover-foreground: #2C2C2C;
+
+  /* Soft teal/mint primary #6ECFCF */
+  --primary: #6ECFCF;
+  --primary-foreground: #ffffff;
+  --primary-soft: #A8E0F0;
+
+  /* Coral/salmon secondary #F07A5A */
+  --secondary: #F07A5A;
+  --secondary-foreground: #ffffff;
+
+  /* Named accent tokens */
+  --teal: #6ECFCF;
+  --coral: #F07A5A;
+
+  /* Chart colors for wellness balance donut */
+  --chart-1: #6ECFCF;
+  --chart-2: #F07A5A;
+  --chart-3: #A8C07A;
+  --chart-4: #FFB84D;
+
+  --muted: #F5F0EB;
+  --muted-foreground: #9A9A9A;
+
+  --accent: #F07A5A;
+  --accent-foreground: #ffffff;
+
+  --destructive: #E8614A;
+  --destructive-foreground: #ffffff;
+
+  --success: #A8C07A;
+  --warning: #f59e0b;
+
+  --border: #E8E3DC;
+  --input: #F5F0EB;
+  --ring: #6ECFCF;
+
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #2C2C2C;
+  --sidebar-primary: #6ECFCF;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #F5F0EB;
+  --sidebar-accent-foreground: #2C2C2C;
+  --sidebar-border: #E8E3DC;
+  --sidebar-ring: #6ECFCF;
+
+  /* Neumorphic Shadows — tuned for warm #F5F0EB background */
+  /* Lighter shadow: #FFFFFF, darker shadow: #D9D0C5 */
+  --shadow-neumorphic: 8px 8px 16px #D9D0C5, -8px -8px 16px #FFFFFF;
+  --shadow-neumorphic-inset: inset 8px 8px 16px #D9D0C5, inset -8px -8px 16px #FFFFFF;
+  --shadow-neumorphic-sm: 4px 4px 8px #D9D0C5, -4px -4px 8px #FFFFFF;
+  --shadow-neumorphic-inset-sm: inset 4px 4px 8px #D9D0C5, inset -4px -4px 8px #FFFFFF;
+}
+
+.dark {
+  /* Dark variant of the warm wellness palette */
+  --background: #2C2C2C;
+  --foreground: #F5F0EB;
+
+  --card: #3A3A3A;
+  --card-foreground: #F5F0EB;
+
+  --popover: #3A3A3A;
+  --popover-foreground: #F5F0EB;
+
+  /* Slightly muted soft teal for dark backgrounds */
+  --primary: #5DBFBF;
+  --primary-foreground: #2C2C2C;
+  --primary-soft: #4A9E9E;
+
+  /* Slightly muted coral for dark backgrounds */
+  --secondary: #E8614A;
+  --secondary-foreground: #2C2C2C;
+
+  /* Named accent tokens (dark variants) */
+  --teal: #5DBFBF;
+  --coral: #E8614A;
+
+  /* Chart colors for wellness balance donut (dark theme) */
+  --chart-1: #5DBFBF;
+  --chart-2: #E8614A;
+  --chart-3: #A8C07A;
+  --chart-4: #FFB84D;
+
+  --muted: #4A4A4A;
+  --muted-foreground: #B8B8B8;
+
+  --accent: #E8614A;
+  --accent-foreground: #2C2C2C;
+
+  --destructive: #E8614A;
+  --destructive-foreground: #ffffff;
+
+  --success: #A8C07A;
+  --warning: #f59e0b;
+
+  --border: #4A4A4A;
+  --input: #4A4A4A;
+  --ring: #5DBFBF;
+
+  --sidebar: #3A3A3A;
+  --sidebar-foreground: #F5F0EB;
+  --sidebar-primary: #5DBFBF;
+  --sidebar-primary-foreground: #2C2C2C;
+  --sidebar-accent: #4A4A4A;
+  --sidebar-accent-foreground: #F5F0EB;
+  --sidebar-border: #4A4A4A;
+  --sidebar-ring: #5DBFBF;
+
+  /* Neumorphic Shadows — tuned for dark #2C2C2C background */
+  --shadow-neumorphic: 8px 8px 16px #1A1A1A, -8px -8px 16px #3E3E3E;
+  --shadow-neumorphic-inset: inset 8px 8px 16px #1A1A1A, inset -8px -8px 16px #3E3E3E;
+  --shadow-neumorphic-sm: 4px 4px 8px #1A1A1A, -4px -4px 8px #3E3E3E;
+  --shadow-neumorphic-inset-sm: inset 4px 4px 8px #1A1A1A, inset -4px -4px 8px #3E3E3E;
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.02em; }
+}

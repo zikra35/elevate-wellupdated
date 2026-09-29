@@ -1,0 +1,127 @@
+version: '3.8'
+
+services:
+  # MongoDB for training data and models
+  mongodb:
+    image: mongo:6.0
+    container_name: ml-service-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DB: radiant_health
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - ml-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and Celery
+  redis:
+    image: redis:7-alpine
+    container_name: ml-service-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ml-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ML Service Flask application
+  ml-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ml-service-app
+    ports:
+      - "5001:5001"
+    environment:
+      FLASK_ENV: development
+      FLASK_DEBUG: "True"
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/radiant_health?authSource=admin
+      MONGODB_DB_NAME: radiant_health
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      SERVICE_HOST: 0.0.0.0
+      SERVICE_PORT: 5001
+      LOG_LEVEL: INFO
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+      - ./models:/app/models
+    networks:
+      - ml-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # Celery worker for async tasks
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ml-service-celery-worker
+    command: celery -A tasks worker --loglevel=info
+    environment:
+      FLASK_ENV: development
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/radiant_health?authSource=admin
+      MONGODB_DB_NAME: radiant_health
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      LOG_LEVEL: INFO
+    depends_on:
+      - mongodb
+      - redis
+      - ml-service
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+      - ./models:/app/models
+    networks:
+      - ml-network
+
+  # Flower for Celery monitoring
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ml-service-flower
+    command: celery -A tasks flower --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    depends_on:
+      - redis
+      - celery-worker
+    networks:
+      - ml-network
+
+volumes:
+  mongodb_data:
+  redis_data:
+
+networks:
+  ml-network:
+    driver: bridge

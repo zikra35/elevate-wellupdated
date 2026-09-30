@@ -198,7 +198,7 @@ export function RecommendationDashboard() {
     );
   }
 
-  const confidencePercentage = Math.round(recommendations.confidence * 100);
+  const confidencePercentage = Number.isFinite(recommendations.confidence) ? Math.round(recommendations.confidence * 100) : null;
   const moodLevel = recommendations.moodInsights?.predictedLevel || 3;
   const moodEmojis = ["😢", "😟", "😐", "🙂", "😄"];
 
@@ -211,7 +211,7 @@ export function RecommendationDashboard() {
             Today's Recommendations
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Personalized for you • Confidence: {confidencePercentage}%
+            Personalized for you{confidencePercentage !== null ? ` • Confidence: ${confidencePercentage}%` : ""}
           </p>
         </div>
         <Button
@@ -236,8 +236,8 @@ export function RecommendationDashboard() {
           emoji="💪"
           content={recommendations.workout}
           details={[
-            `Confidence: ${confidencePercentage}%`,
-            `Source: ${recommendations.source}`,
+            confidencePercentage !== null ? `Confidence: ${confidencePercentage}%` : null,
+            recommendations.source ? `Source: ${recommendations.source}` : null,
           ]}
           cardType="workout"
           feedback={feedback.workout}
@@ -259,7 +259,7 @@ export function RecommendationDashboard() {
           }
           details={[
             `${recommendations.meals?.length || 0} meals available`,
-            `Source: ${recommendations.source}`,
+            recommendations.source ? `Source: ${recommendations.source}` : null,
           ]}
           cardType="meal"
           feedback={feedback.meal}
@@ -318,7 +318,7 @@ interface RecommendationCardProps {
   title: string;
   emoji: string;
   content: string;
-  details: string[];
+  details: (string | null)[];
   cardType: "workout" | "meal" | "sleep" | "mood";
   feedback: "liked" | "disliked" | null | undefined;
   onFeedback: (cardType: string, feedback: "liked" | "disliked") => void;
@@ -346,7 +346,7 @@ function RecommendationCard({
           <div className="text-3xl">{emoji}</div>
           <div>
             <h3 className="font-semibold text-foreground">{title}</h3>
-            <p className="text-xs text-muted-foreground">{details[0]}</p>
+            {details[0] && <p className="text-xs text-muted-foreground">{details[0]}</p>}
           </div>
         </div>
         <Icon className="h-5 w-5 text-muted-foreground" />

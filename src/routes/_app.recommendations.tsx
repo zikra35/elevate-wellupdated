@@ -22,8 +22,8 @@ function RecommendationsPage() {
   return (
     <div className="space-y-6 p-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-3xl font-bold text-foreground">
             AI Recommendations
           </h1>
@@ -148,7 +148,7 @@ function RecommendationHistory() {
               <div>
                 <CardTitle className="text-lg">Recommendation #{history.length - idx}</CardTitle>
                 <CardDescription>
-                  Confidence: {Math.round(rec.confidence * 100)}% • Source: {rec.source}
+                  Confidence: {Number.isFinite(rec.confidence) ? Math.round(rec.confidence * 100) : "—"}%{rec.source ? ` • Source: ${rec.source}` : ""}
                 </CardDescription>
               </div>
             </div>

@@ -19,33 +19,12 @@ const routinesRoutes = require('./routes/routines');
 const plansRoutes = require('./routes/plans');
 const seedHealthyLiving = require('./seeds/healthyLiving');
 const seedMentalHealth = require('./seeds/mentalHealth');
+const { createOriginChecker } = require('./utils/cors');
 
 const app = express();
 
-// CORS: fixed origins + any *.vercel.app deployment + extra origins from
-// CORS_ORIGINS (comma-separated, e.g. "https://elevatewell.com,https://www.elevatewell.com")
-const allowedOrigins = new Set([
-  'https://tanstack-start-app.zeynabiqbal225.workers.dev',
-  'https://elevate-well-pi.vercel.app',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://localhost:8080',
-  ...(process.env.CORS_ORIGINS || '')
-    .split(',')
-    .map((o) => o.trim().replace(/\/$/, ''))
-    .filter(Boolean),
-]);
-
-function isAllowedOrigin(origin) {
-  if (!origin) return true; // same-origin, curl, health checks
-  if (allowedOrigins.has(origin)) return true;
-  try {
-    const { protocol, hostname } = new URL(origin);
-    return protocol === 'https:' && hostname.endsWith('.vercel.app');
-  } catch {
-    return false;
-  }
-}
+// CORS policy lives in utils/cors.js
+const isAllowedOrigin = createOriginChecker();
 
 // Middleware
 app.use(cors({

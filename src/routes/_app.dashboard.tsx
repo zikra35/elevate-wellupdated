@@ -120,8 +120,9 @@ function Dashboard() {
 
       if (scoreRes.ok) {
         const scoreData = await scoreRes.json();
-        setReadinessScore(scoreData.readinessScore);
-        setWellnessBreakdown(scoreData.breakdown);
+        // Keep the defaults if the response is missing fields, so the page never crashes
+        if (typeof scoreData?.readinessScore === "number") setReadinessScore(scoreData.readinessScore);
+        if (scoreData?.breakdown) setWellnessBreakdown((prev) => ({ ...prev, ...scoreData.breakdown }));
       }
 
       // Fetch wellness balance
@@ -131,7 +132,9 @@ function Dashboard() {
 
       if (balanceRes.ok) {
         const balanceData = await balanceRes.json();
-        setWellnessBalance(balanceData);
+        if (balanceData && typeof balanceData === "object" && !Array.isArray(balanceData)) {
+          setWellnessBalance((prev) => ({ ...prev, ...balanceData }));
+        }
       }
 
       // Generate recommended wellness path

@@ -156,7 +156,7 @@ const TOPICS = [
     match: /\b(thank|thanks|shukriya|appreciate)/i,
     replies: [
       "You're very welcome{name}. I'm here whenever you want to talk.",
-      "Anytime. Taking time to look after yourself matters. Is there anything else on your mind?",
+      "Anytime{name}. Taking time to look after yourself matters. Is there anything else on your mind?",
     ],
   },
 ];

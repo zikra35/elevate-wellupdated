@@ -9,13 +9,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { DietaryPreferencesSelector } from "@/components/DietaryPreferencesSelector";
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 function getToken() { return localStorage.getItem("authToken"); }
 import { UserAvatar, type AvatarConfig } from "@/components/UserAvatar";
 import { calcAge, calcBMI, calcTDEE } from "@/lib/health";
 import { Download, LogOut, Trash2, Loader2, Camera, Check, AlertTriangle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { API_BASE_URL } from "@/lib/api";
 
 export const Route = createFileRoute("/_app/profile")({
   component: ProfilePage,

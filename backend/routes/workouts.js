@@ -2,6 +2,7 @@ const express = require('express');
 const Workout = require('../models/Workout');
 const authMiddleware = require('../middleware/auth');
 const { updateWorkoutProgress, getActivePlan, getPlanSuggestions } = require('../services/planProgressTracker');
+const { isDayString, dayToUtcDate, localToday, parseTzOffset, rangeFromQuery, instantToLocalDay } = require('../utils/dates');
 
 const router = express.Router();
 
@@ -163,7 +164,10 @@ router.get('/', authMiddleware, async (req, res) => {
 // Delete Workout
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
-    await Workout.findByIdAndDelete(req.params.id);
+    const deleted = await Workout.findOneAndDelete({ _id: req.params.id, userId: req.userId });
+    if (!deleted) {
+      return res.status(404).json({ message: 'Workout not found' });
+    }
     res.json({ message: 'Workout deleted' });
   } catch (error) {
     console.error(error);
@@ -258,11 +262,11 @@ router.delete('/custom/:id', authMiddleware, async (req, res) => {
 
 
 // @route   POST /api/workouts/log-workout
-// @desc    Log a workout for the current day
+// @desc    Quick-log a workout. `date` is the user's local day (YYYY-MM-DD).
 router.post('/log-workout', authMiddleware, async (req, res) => {
   try {
-    const { name, duration, date } = req.body;
-    
+    const { name, duration, date, tzOffset } = req.body;
+
     if (!name || !duration) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
@@ -270,36 +274,29 @@ router.post('/log-workout', authMiddleware, async (req, res) => {
     const WorkoutLog = require('../models/WorkoutLog');
     const Plan = require('../models/Plan');
 
+    const day = isDayString(date) ? date : localToday(parseTzOffset(tzOffset));
+
     // Get active plan for this user
     const activePlan = await Plan.findOne({ userId: req.userId, status: 'active' });
 
-    // Create a workout log entry
     const workoutLog = new WorkoutLog({
       userId: req.userId,
       planId: activePlan ? activePlan._id : null,
       name,
-      duration: parseInt(duration),
-      date: new Date(date || new Date().toISOString().split('T')[0]),
+      duration: parseInt(duration, 10),
+      date: dayToUtcDate(day),
       loggedAt: new Date()
     });
 
     await workoutLog.save();
 
-    // Update plan progress if active plan exists
+    // Update plan progress with the number of workouts logged on that day
     if (activePlan) {
-      // Count workouts logged today
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const workoutsLoggedToday = await WorkoutLog.countDocuments({
+      activePlan.progress.workoutsCompleted = await WorkoutLog.countDocuments({
         userId: req.userId,
         planId: activePlan._id,
-        date: { $gte: today, $lt: tomorrow }
+        date: workoutLog.date
       });
-
-      activePlan.progress.workoutsCompleted = workoutsLoggedToday;
       await activePlan.save();
     }
 
@@ -312,30 +309,64 @@ router.post('/log-workout', authMiddleware, async (req, res) => {
   }
 });
 
-// @route   GET /api/workouts/workout-history
-// @desc    Get all logged workouts for the user
+// @route   GET /api/workouts/workout-history?from=YYYY-MM-DD&to=YYYY-MM-DD&tzOffset=-300
+// @desc    Quick logs (WorkoutLog) and sessions/GPS workouts (Workout) in a local
+//          date range (no `from` = all time), merged and sorted newest first
 router.get('/workout-history', authMiddleware, async (req, res) => {
   try {
     const WorkoutLog = require('../models/WorkoutLog');
+    const { tzOffset, dayFilter, instantFilter } = rangeFromQuery(req.query);
 
-    // Get workouts from today
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const [logs, sessions] = await Promise.all([
+      WorkoutLog.find({ userId: req.userId, date: dayFilter }).sort({ loggedAt: -1 }).limit(1000),
+      Workout.find({ userId: req.userId, date: instantFilter }).sort({ date: -1 }).limit(1000),
+    ]);
 
-    const workouts = await WorkoutLog.find({
-      userId: req.userId,
-      date: { $gte: today, $lt: tomorrow }
-    }).sort({ loggedAt: -1 });
-
-    res.json({
-      workouts: workouts.map(w => ({
+    const workouts = [
+      ...logs.map(w => ({
+        id: w._id,
+        source: 'log',
         name: w.name,
         duration: w.duration,
-        date: w.date.toISOString().split('T')[0]
-      }))
-    });
+        date: w.date.toISOString().split('T')[0],
+        loggedAt: w.loggedAt,
+      })),
+      ...sessions.map(w => ({
+        id: w._id,
+        source: 'session',
+        name: w.name || 'Workout',
+        type: w.type,
+        duration: w.duration_minutes || 0,
+        calories: w.calories_burned || 0,
+        intensity: w.intensity,
+        isGpsTracked: !!w.isGpsTracked,
+        distanceKm: w.distanceKm || 0,
+        pace: w.pace,
+        date: instantToLocalDay(w.date, tzOffset),
+        loggedAt: w.date,
+      })),
+    ].sort((a, b) => new Date(b.loggedAt) - new Date(a.loggedAt));
+
+    res.json({ workouts });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @route   DELETE /api/workouts/workout-history/:source/:id
+// @desc    Delete one of the user's workouts (source: "log" or "session")
+router.delete('/workout-history/:source/:id', authMiddleware, async (req, res) => {
+  try {
+    const WorkoutLog = require('../models/WorkoutLog');
+    const Model = req.params.source === 'log' ? WorkoutLog : req.params.source === 'session' ? Workout : null;
+    if (!Model) {
+      return res.status(400).json({ message: 'source must be "log" or "session"' });
+    }
+    const deleted = await Model.findOneAndDelete({ _id: req.params.id, userId: req.userId });
+    if (!deleted) {
+      return res.status(404).json({ message: 'Workout not found' });
+    }
+    res.json({ message: 'Workout deleted' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { API_BASE_URL } from "@/lib/api";
 
 interface PlanProgress {
   workoutsCompleted: number;
@@ -33,7 +34,6 @@ export function usePlanProgress() {
       setError(null);
 
       const token = localStorage.getItem('authToken');
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
       const res = await fetch(`${API_BASE_URL}/plans?status=active`, {
         headers: { Authorization: `Bearer ${token}` }

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Trash2, Play, Pause, ChevronDown, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { API_BASE_URL } from "@/lib/api";
 
 export const Route = createFileRoute('/_app/plans')({
   component: PlansPage,
@@ -57,7 +58,6 @@ function PlansPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
       const res = await fetch(`${API_BASE_URL}/plans`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -80,7 +80,6 @@ function PlansPage() {
     try {
       setActionLoading(planId);
       const token = localStorage.getItem('authToken');
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
       const res = await fetch(`${API_BASE_URL}/plans/${planId}/activate`, {
         method: 'PUT',
@@ -101,7 +100,6 @@ function PlansPage() {
     try {
       setActionLoading(planId);
       const token = localStorage.getItem('authToken');
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
       const res = await fetch(`${API_BASE_URL}/plans/${planId}/deactivate`, {
         method: 'PUT',
@@ -124,7 +122,6 @@ function PlansPage() {
     try {
       setActionLoading(planId);
       const token = localStorage.getItem('authToken');
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
       const res = await fetch(`${API_BASE_URL}/plans/${planId}`, {
         method: 'DELETE',

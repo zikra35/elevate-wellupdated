@@ -13,6 +13,7 @@ import { calcAge, calcBMI, bmiCategory, calcTDEE } from "@/lib/health";
 import { UserAvatar, type AvatarConfig } from "@/components/UserAvatar";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Loader2, Sparkles, Lightbulb } from "lucide-react";
+import { API_BASE_URL } from "@/lib/api";
 
 export const Route = createFileRoute("/onboarding")({
   component: Onboarding,
@@ -62,7 +63,6 @@ function Onboarding() {
     
     const token = localStorage.getItem("authToken");
     if (token) {
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
       fetch(`${API_BASE_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -99,7 +99,6 @@ function Onboarding() {
     
     try {
       const token = localStorage.getItem("authToken");
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
       
       const res = await fetch(`${API_BASE_URL}/auth/profile`, {
         method: "PUT",

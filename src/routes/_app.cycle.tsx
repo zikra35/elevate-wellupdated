@@ -6,12 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 function getToken() { return localStorage.getItem("authToken"); }
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { Droplets, Plus, Sparkles, Loader2, Heart, ChevronLeft, ChevronRight, Apple, Activity, Moon } from "lucide-react";
 import { toast } from "sonner";
+import { API_BASE_URL, localDateString } from "@/lib/api";
 
 export const Route = createFileRoute("/_app/cycle")({
   component: CyclePage,
@@ -38,7 +38,7 @@ function CyclePage() {
   const [open, setOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [form, setForm] = useState<{ start_date: string; end_date: string; flow: string; symptoms: string[]; mood: string; notes: string }>({
-    start_date: new Date().toISOString().slice(0, 10),
+    start_date: localDateString(),
     end_date: "",
     flow: "medium",
     symptoms: [],
@@ -77,7 +77,7 @@ function CyclePage() {
   const { dayOfCycle, phase, nextPeriod, fertileWindow, ovulation } = useMemo(() => {
     if (!lastStart) return { dayOfCycle: null, phase: null, nextPeriod: null, fertileWindow: null, ovulation: null } as any;
     const start = new Date(lastStart + "T00:00:00");
-    const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00");
+    const today = new Date(localDateString() + "T00:00:00");
     const diff = Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     const day = ((diff % cycleLen) + cycleLen) % cycleLen + 1;
     const next = new Date(start.getTime() + cycleLen * 86400000);
@@ -220,7 +220,7 @@ function CyclePage() {
     if (Number.isNaN(d.getTime()) || d.getMonth() + 1 !== month || d.getDate() !== day) return "That date doesn't exist.";
     if (year < 1900 || year > 2100) return "Year is out of range.";
     // Allow today and past dates only (no future dates)
-    const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00");
+    const today = new Date(localDateString() + "T00:00:00");
     if (d.getTime() > today.getTime()) return "Date can't be in the future.";
     return null;
   }

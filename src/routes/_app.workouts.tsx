@@ -13,6 +13,7 @@ import { Dumbbell, Clock, Flame, Play, Pause, SkipForward, X, Check, Youtube, Fo
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { toast } from "sonner";
+import { API_BASE_URL, apiFetch, localDateString } from "@/lib/api";
 
 // Lazy import Leaflet components to avoid SSR errors
 let MapContainer: any = null;
@@ -123,7 +124,6 @@ function PersonalStatsCard() {
   async function loadStats() {
     try {
       const token = localStorage.getItem("authToken");
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
       
       // Fetch workouts from this week
       const res = await fetch(`${API_BASE_URL}/workouts?days=7`, {
@@ -207,6 +207,7 @@ function RouteTracker() {
 }
 
 function RouteTrackerContent() {
+  const navigate = useNavigate();
   const [state, setState] = useState<TrackingState>("idle");
   const [route, setRoute] = useState<Coord[]>([]);
   const [currentPos, setCurrentPos] = useState<Coord | null>(null);
@@ -292,7 +293,6 @@ function RouteTrackerContent() {
 
     setIsSaving(true);
     try {
-      const token = localStorage.getItem("token");
       const paceStr = distanceKm > 0.05 && elapsed > 0
         ? (() => {
             const secPerKm = elapsed / distanceKm;
@@ -300,12 +300,8 @@ function RouteTrackerContent() {
           })()
         : "--'--\"";
 
-      const response = await fetch("/api/workouts/gps", {
+      const response = await apiFetch("/workouts/gps", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           name: `GPS ${activityType}`,
           duration_minutes: Math.round(elapsed / 60),
@@ -321,22 +317,24 @@ function RouteTrackerContent() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to save workout");
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Failed to save workout");
       }
 
-      const data = await response.json();
-      console.log("Workout saved:", data);
-      
       // Reset after successful save
       handleStop();
       setError(null);
-      alert("✅ Workout saved successfully!");
+      window.dispatchEvent(new Event("workoutLogged"));
+      toast.success("Route saved", {
+        description: `${distanceKm.toFixed(2)} km in ${Math.round(elapsed / 60)} min`,
+        action: { label: "View history", onClick: () => navigate({ to: "/workout-history" }) },
+      });
     } catch (err) {
       setError(`Error saving workout: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
       setIsSaving(false);
     }
-  }, [distanceKm, elapsed, route, currentPos, activityType]);
+  }, [distanceKm, elapsed, route, currentPos, activityType, navigate]);
 
   function handleStart() {
     setError(null);
@@ -554,7 +552,6 @@ function PhaseRecommendedWorkouts({ onStartWorkout }: { onStartWorkout?: (workou
       }
 
       const token = localStorage.getItem("authToken");
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
       const cycleRes = await fetch(`${API_BASE_URL}/cycle?days=720`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -574,7 +571,7 @@ function PhaseRecommendedWorkouts({ onStartWorkout }: { onStartWorkout?: (workou
       const periodLen = profile?.period_length_days ?? 5;
       const lastLog = logs[0];
       const lastPeriodDate = new Date(lastLog.date ? new Date(lastLog.date).toISOString().slice(0, 10) : lastLog.start_date);
-      const today = new Date(new Date().toISOString().slice(0, 10));
+      const today = new Date(localDateString());
 
       const diff = Math.floor((today.getTime() - lastPeriodDate.getTime()) / (1000 * 60 * 60 * 24));
       const day = ((diff % cycleLen) + cycleLen) % cycleLen + 1;
@@ -890,7 +887,6 @@ function CustomWorkoutBuilder({ onExit }: { onExit: () => void }) {
     try {
       setLoading(true);
       const token = localStorage.getItem("authToken");
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
       const res = await fetch(`${API_BASE_URL}/workouts/custom`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -947,7 +943,6 @@ function CustomWorkoutBuilder({ onExit }: { onExit: () => void }) {
 
     try {
       const token = localStorage.getItem("authToken");
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
       const method = editingId ? "PUT" : "POST";
       const endpoint = editingId ? `/workouts/custom/${editingId}` : "/workouts/custom";
 
@@ -985,7 +980,6 @@ function CustomWorkoutBuilder({ onExit }: { onExit: () => void }) {
   async function deleteWorkout(id: string) {
     try {
       const token = localStorage.getItem("authToken");
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
       const res = await fetch(`${API_BASE_URL}/workouts/custom/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
@@ -1257,7 +1251,6 @@ function SessionPlayer({ workout, onExit }: { workout: Workout; onExit: () => vo
     if (!user) { onExit(); return; }
     try {
       const token = localStorage.getItem("authToken");
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
       
       const res = await fetch(`${API_BASE_URL}/workouts/log`, {
         method: "POST",
@@ -1279,7 +1272,10 @@ function SessionPlayer({ workout, onExit }: { workout: Workout; onExit: () => vo
         throw new Error(errorData.message || "Failed to log workout");
       }
       
-      toast.success("Workout logged! Great work 💪");
+      window.dispatchEvent(new Event("workoutLogged"));
+      toast.success("Workout logged! Great work 💪", {
+        action: { label: "View history", onClick: () => navigate({ to: "/workout-history" }) },
+      });
       navigate({ to: "/dashboard" });
     } catch (err: any) {
       console.error("Failed to log workout:", err);

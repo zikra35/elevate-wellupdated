@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { Progress } from "@/components/ui/progress";
 import { PlanStatusCard } from "@/components/PlanStatusCard";
 import * as SliderPrimitive from "@radix-ui/react-slider";
+import { API_BASE_URL } from "@/lib/api";
 
 export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
@@ -23,7 +24,6 @@ function ActivePlanCard() {
     try {
       setLoading(true);
       const token = localStorage.getItem("authToken");
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
       const res = await fetch(`${API_BASE_URL}/plans?status=active`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -112,7 +112,6 @@ function Dashboard() {
     try {
       setLoading(true);
       const token = localStorage.getItem("authToken");
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
       // Fetch readiness score and breakdown
       const scoreRes = await fetch(`${API_BASE_URL}/wellness/readiness-score`, {

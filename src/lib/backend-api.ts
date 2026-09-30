@@ -1,28 +1,7 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+import { apiJson } from "@/lib/api";
 
-const getAuthToken = () => localStorage.getItem("authToken");
-
-const apiCall = async (endpoint: string, options: RequestInit = {}) => {
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...(options.headers || {}),
-  };
-
-  const token = getAuthToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: "API Error" }));
-    throw new Error(error.message || `HTTP ${res.status}`);
-  }
-
-  return res.json();
-};
+// All calls go through the shared helper (backend URL + Bearer token + error messages)
+const apiCall = (endpoint: string, options: RequestInit = {}) => apiJson(endpoint, options);
 
 // Workout handlers
 export async function saveWorkout(userId: string, workout: {
@@ -253,11 +232,21 @@ export async function getMusic(moodTag?: string) {
 }
 
 // AI handlers
-export async function chatWithSage(messages: Array<{ role: string; content: string }>) {
-  return apiCall("/ai/chat", {
-    method: "POST",
-    body: JSON.stringify({ messages }),
-  });
+export async function chatWithSage(
+  messages: Array<{ role: string; content: string }>,
+  conversationId?: string,
+): Promise<{ reply: string; conversationId?: string; source?: string; crisis?: boolean }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+  try {
+    return await apiCall("/ai/chat", {
+      method: "POST",
+      body: JSON.stringify({ messages, conversationId }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function getAISuggestions(profile: any, phase?: string, mood?: number, anxietyLevel?: number) {

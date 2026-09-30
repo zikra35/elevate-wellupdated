@@ -4,6 +4,7 @@ const protect = require('../middleware/auth');
 const DietPlan = require('../models/DietPlan');
 const Supplement = require('../models/Supplement');
 const Content = require('../models/Content');
+const { isDayString, dayToUtcDate, localToday, parseTzOffset, rangeFromQuery } = require('../utils/dates');
 
 // @route   GET /api/diet/supplements
 // @desc    Get all supplements for a user
@@ -88,52 +89,43 @@ router.get('/articles', protect, async (req, res) => {
 });
 
 // @route   POST /api/diet/log-meal
-// @desc    Log a meal for the current day
+// @desc    Log a meal. `date` is the user's local day (YYYY-MM-DD).
 router.post('/log-meal', protect, async (req, res) => {
   try {
-    const { name, time, type, date } = req.body;
-    
+    const { name, time, type, date, tzOffset } = req.body;
+
     if (!name || !time || !type) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
     const MealLog = require('../models/MealLog');
     const Plan = require('../models/Plan');
+    const userId = req.userId;
 
-    // Get user ID - handle both req.user._id and req.userId
-    const userId = req.user._id || req.userId;
+    const day = isDayString(date) ? date : localToday(parseTzOffset(tzOffset));
 
     // Get active plan for this user
-    const activePlan = await Plan.findOne({ userId: userId, status: 'active' });
+    const activePlan = await Plan.findOne({ userId, status: 'active' });
 
-    // Create a meal log entry
     const mealLog = new MealLog({
-      userId: userId,
+      userId,
       planId: activePlan ? activePlan._id : null,
       name,
       time,
       type,
-      date: new Date(date || new Date().toISOString().split('T')[0]),
+      date: dayToUtcDate(day),
       loggedAt: new Date()
     });
 
     await mealLog.save();
 
-    // Update plan progress if active plan exists
+    // Update plan progress with the number of meals logged on that day
     if (activePlan) {
-      // Count meals logged today
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const mealsLoggedToday = await MealLog.countDocuments({
-        userId: userId,
+      activePlan.progress.mealsLogged = await MealLog.countDocuments({
+        userId,
         planId: activePlan._id,
-        date: { $gte: today, $lt: tomorrow }
+        date: mealLog.date
       });
-
-      activePlan.progress.mealsLogged = mealsLoggedToday;
       await activePlan.save();
     }
 
@@ -147,36 +139,45 @@ router.post('/log-meal', protect, async (req, res) => {
   }
 });
 
-// @route   GET /api/diet/meal-history
-// @desc    Get all logged meals for the user
+// @route   GET /api/diet/meal-history?from=YYYY-MM-DD&to=YYYY-MM-DD&tzOffset=-300
+// @desc    Logged meals in a local date range (no `from` = all time), newest first
 router.get('/meal-history', protect, async (req, res) => {
   try {
     const MealLog = require('../models/MealLog');
+    const { dayFilter } = rangeFromQuery(req.query);
 
-    // Get user ID - handle both req.user._id and req.userId
-    const userId = req.user._id || req.userId;
-
-    // Get meals from today
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const meals = await MealLog.find({
-      userId: userId,
-      date: { $gte: today, $lt: tomorrow }
-    }).sort({ time: 1 });
+    const meals = await MealLog.find({ userId: req.userId, date: dayFilter })
+      .sort({ date: -1, time: -1, loggedAt: -1 })
+      .limit(1000);
 
     res.json({
       meals: meals.map(m => ({
+        id: m._id,
         name: m.name,
         time: m.time,
         type: m.type,
-        date: m.date.toISOString().split('T')[0]
+        date: m.date.toISOString().split('T')[0],
+        loggedAt: m.loggedAt
       }))
     });
   } catch (error) {
     console.error('Error fetching meal history:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @route   DELETE /api/diet/meal-history/:id
+// @desc    Delete one of the user's logged meals
+router.delete('/meal-history/:id', protect, async (req, res) => {
+  try {
+    const MealLog = require('../models/MealLog');
+    const deleted = await MealLog.findOneAndDelete({ _id: req.params.id, userId: req.userId });
+    if (!deleted) {
+      return res.status(404).json({ message: 'Meal not found' });
+    }
+    res.json({ message: 'Meal deleted' });
+  } catch (error) {
+    console.error('Error deleting meal:', error);
     res.status(500).json({ message: error.message });
   }
 });

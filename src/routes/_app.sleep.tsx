@@ -10,6 +10,7 @@ import { SLEEP_SOUNDS } from "@/lib/library";
 import { useAuth } from "@/hooks/useAuth";
 import { Moon, Bed, Volume2, VolumeX, Play, Check, Clock, Zap, Brain, Smile, Music } from "lucide-react";
 import { toast } from "sonner";
+import { API_BASE_URL, localDateString } from "@/lib/api";
 
 export const Route = createFileRoute("/_app/sleep")({
   component: SleepPage,
@@ -30,7 +31,6 @@ function SleepPage() {
   async function refresh() {
     const token = localStorage.getItem("authToken");
     if (!token) return;
-    const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
     try {
       const res = await fetch(`${API_BASE_URL}/sleep?days=7`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -60,7 +60,6 @@ function SleepPage() {
   async function logSleep() {
     if (!user) return;
     const token = localStorage.getItem("authToken");
-    const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
     
     try {
       const res = await fetch(`${API_BASE_URL}/sleep`, {
@@ -70,7 +69,7 @@ function SleepPage() {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          date: new Date().toISOString().slice(0, 10),
+          date: localDateString(),
           duration_hours: hours,
           quality,
           notes

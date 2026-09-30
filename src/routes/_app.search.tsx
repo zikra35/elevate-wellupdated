@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertCircle, Loader2, TrendingUp, Clock, Zap } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { apiFetch, tzOffset } from "@/lib/api";
 
 interface WellnessState {
   nutrition: number;
@@ -97,7 +98,7 @@ function SearchPage() {
 
   const loadCurrentState = async () => {
     try {
-      const response = await fetch('/api/search/current-state');
+      const response = await apiFetch(`/search/current-state?tzOffset=${tzOffset()}`);
       if (!response.ok) throw new Error('Failed to load current state');
       const data = await response.json();
       setCurrentState(data.currentState);
@@ -110,10 +111,10 @@ function SearchPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/search/find-path', {
+      const response = await apiFetch('/search/find-path', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          tzOffset: tzOffset(),
           algorithm: selectedAlgorithm,
           goalState,
           maxSteps: 20,
@@ -134,10 +135,9 @@ function SearchPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/search/compare-algorithms', {
+      const response = await apiFetch('/search/compare-algorithms', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ goalState }),
+        body: JSON.stringify({ goalState, tzOffset: tzOffset() }),
       });
 
       if (!response.ok) throw new Error('Failed to compare algorithms');

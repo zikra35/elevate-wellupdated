@@ -5,16 +5,16 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-teal-400 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all duration-150 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-teal-400 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default: "bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-lg hover:shadow-xl hover:from-teal-600 hover:to-cyan-600 active:shadow-md",
         destructive: "bg-destructive text-destructive-foreground shadow-lg hover:shadow-xl hover:bg-destructive/90 active:shadow-md",
         outline:
-          "bg-white/30 backdrop-blur-sm border-2 border-white/50 text-foreground shadow-lg hover:bg-white/50 hover:border-white/70 active:shadow-md",
-        secondary: "bg-gradient-to-r from-coral-500 to-red-500 text-white shadow-lg hover:shadow-xl hover:from-coral-600 hover:to-red-600 active:shadow-md",
-        ghost: "hover:bg-white/20 hover:text-accent-foreground transition-colors",
+          "bg-card/60 backdrop-blur-sm border-2 border-border text-foreground shadow-sm hover:bg-muted hover:border-primary/40 active:shadow-none",
+        secondary: "bg-secondary text-secondary-foreground shadow-lg hover:shadow-xl hover:bg-secondary/90 active:shadow-md",
+        ghost: "hover:bg-muted hover:text-foreground transition-colors",
         link: "text-teal-600 underline-offset-4 hover:underline hover:text-teal-700",
       },
       size: {

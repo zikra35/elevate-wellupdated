@@ -10,6 +10,7 @@ import { useWorkoutData } from "@/hooks/useWellnessData";
 import { useAuth } from "@/hooks/useAuth";
 import { Activity, Plus, Loader2, Trash2, Flame } from "lucide-react";
 import { toast } from "sonner";
+import { localDateString } from "@/lib/api";
 
 export const Route = createFileRoute("/_app/workouts-log")({
   component: WorkoutsLogPage,
@@ -29,7 +30,7 @@ function WorkoutsLogPage() {
     intensity: "Moderate" as typeof INTENSITY_LEVELS[number],
     calories_burned: 0,
     notes: "",
-    date: new Date().toISOString().split("T")[0],
+    date: localDateString(),
   });
   const [saving, setSaving] = useState(false);
 
@@ -56,7 +57,7 @@ function WorkoutsLogPage() {
         intensity: "Moderate",
         calories_burned: 0,
         notes: "",
-        date: new Date().toISOString().split("T")[0],
+        date: localDateString(),
       });
       setOpen(false);
     } catch (error) {

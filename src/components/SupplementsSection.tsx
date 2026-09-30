@@ -9,8 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Plus, Trash2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useProfile } from "@/hooks/useProfile";
+import { API_BASE_URL } from "@/lib/api";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 interface Supplement {
   _id: string;

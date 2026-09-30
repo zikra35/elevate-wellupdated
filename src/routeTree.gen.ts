@@ -16,12 +16,14 @@ import { Route as AuthSignupRouteImport } from './routes/auth.signup'
 import { Route as AuthLoginRouteImport } from './routes/auth.login'
 import { Route as AppWorkoutsLogRouteImport } from './routes/_app.workouts-log'
 import { Route as AppWorkoutsRouteImport } from './routes/_app.workouts'
+import { Route as AppWorkoutHistoryRouteImport } from './routes/_app.workout-history'
 import { Route as AppSleepRouteImport } from './routes/_app.sleep'
 import { Route as AppSearchRouteImport } from './routes/_app.search'
 import { Route as AppRecommendationsRouteImport } from './routes/_app.recommendations'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppPlansRouteImport } from './routes/_app.plans'
 import { Route as AppMentalRouteImport } from './routes/_app.mental'
+import { Route as AppMealHistoryRouteImport } from './routes/_app.meal-history'
 import { Route as AppHealthyLivingRouteImport } from './routes/_app.healthy-living'
 import { Route as AppFocusRouteImport } from './routes/_app.focus'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
@@ -62,6 +64,11 @@ const AppWorkoutsRoute = AppWorkoutsRouteImport.update({
   path: '/workouts',
   getParentRoute: () => AppRoute,
 } as any)
+const AppWorkoutHistoryRoute = AppWorkoutHistoryRouteImport.update({
+  id: '/workout-history',
+  path: '/workout-history',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSleepRoute = AppSleepRouteImport.update({
   id: '/sleep',
   path: '/sleep',
@@ -90,6 +97,11 @@ const AppPlansRoute = AppPlansRouteImport.update({
 const AppMentalRoute = AppMentalRouteImport.update({
   id: '/mental',
   path: '/mental',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMealHistoryRoute = AppMealHistoryRouteImport.update({
+  id: '/meal-history',
+  path: '/meal-history',
   getParentRoute: () => AppRoute,
 } as any)
 const AppHealthyLivingRoute = AppHealthyLivingRouteImport.update({
@@ -126,12 +138,14 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/focus': typeof AppFocusRoute
   '/healthy-living': typeof AppHealthyLivingRoute
+  '/meal-history': typeof AppMealHistoryRoute
   '/mental': typeof AppMentalRoute
   '/plans': typeof AppPlansRoute
   '/profile': typeof AppProfileRoute
   '/recommendations': typeof AppRecommendationsRoute
   '/search': typeof AppSearchRoute
   '/sleep': typeof AppSleepRoute
+  '/workout-history': typeof AppWorkoutHistoryRoute
   '/workouts': typeof AppWorkoutsRoute
   '/workouts-log': typeof AppWorkoutsLogRoute
   '/auth/login': typeof AuthLoginRoute
@@ -145,12 +159,14 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/focus': typeof AppFocusRoute
   '/healthy-living': typeof AppHealthyLivingRoute
+  '/meal-history': typeof AppMealHistoryRoute
   '/mental': typeof AppMentalRoute
   '/plans': typeof AppPlansRoute
   '/profile': typeof AppProfileRoute
   '/recommendations': typeof AppRecommendationsRoute
   '/search': typeof AppSearchRoute
   '/sleep': typeof AppSleepRoute
+  '/workout-history': typeof AppWorkoutHistoryRoute
   '/workouts': typeof AppWorkoutsRoute
   '/workouts-log': typeof AppWorkoutsLogRoute
   '/auth/login': typeof AuthLoginRoute
@@ -166,12 +182,14 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/focus': typeof AppFocusRoute
   '/_app/healthy-living': typeof AppHealthyLivingRoute
+  '/_app/meal-history': typeof AppMealHistoryRoute
   '/_app/mental': typeof AppMentalRoute
   '/_app/plans': typeof AppPlansRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/recommendations': typeof AppRecommendationsRoute
   '/_app/search': typeof AppSearchRoute
   '/_app/sleep': typeof AppSleepRoute
+  '/_app/workout-history': typeof AppWorkoutHistoryRoute
   '/_app/workouts': typeof AppWorkoutsRoute
   '/_app/workouts-log': typeof AppWorkoutsLogRoute
   '/auth/login': typeof AuthLoginRoute
@@ -187,12 +205,14 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/focus'
     | '/healthy-living'
+    | '/meal-history'
     | '/mental'
     | '/plans'
     | '/profile'
     | '/recommendations'
     | '/search'
     | '/sleep'
+    | '/workout-history'
     | '/workouts'
     | '/workouts-log'
     | '/auth/login'
@@ -206,12 +226,14 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/focus'
     | '/healthy-living'
+    | '/meal-history'
     | '/mental'
     | '/plans'
     | '/profile'
     | '/recommendations'
     | '/search'
     | '/sleep'
+    | '/workout-history'
     | '/workouts'
     | '/workouts-log'
     | '/auth/login'
@@ -226,12 +248,14 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/focus'
     | '/_app/healthy-living'
+    | '/_app/meal-history'
     | '/_app/mental'
     | '/_app/plans'
     | '/_app/profile'
     | '/_app/recommendations'
     | '/_app/search'
     | '/_app/sleep'
+    | '/_app/workout-history'
     | '/_app/workouts'
     | '/_app/workouts-log'
     | '/auth/login'
@@ -297,6 +321,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkoutsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/workout-history': {
+      id: '/_app/workout-history'
+      path: '/workout-history'
+      fullPath: '/workout-history'
+      preLoaderRoute: typeof AppWorkoutHistoryRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/sleep': {
       id: '/_app/sleep'
       path: '/sleep'
@@ -337,6 +368,13 @@ declare module '@tanstack/react-router' {
       path: '/mental'
       fullPath: '/mental'
       preLoaderRoute: typeof AppMentalRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/meal-history': {
+      id: '/_app/meal-history'
+      path: '/meal-history'
+      fullPath: '/meal-history'
+      preLoaderRoute: typeof AppMealHistoryRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/healthy-living': {
@@ -383,12 +421,14 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppFocusRoute: typeof AppFocusRoute
   AppHealthyLivingRoute: typeof AppHealthyLivingRoute
+  AppMealHistoryRoute: typeof AppMealHistoryRoute
   AppMentalRoute: typeof AppMentalRoute
   AppPlansRoute: typeof AppPlansRoute
   AppProfileRoute: typeof AppProfileRoute
   AppRecommendationsRoute: typeof AppRecommendationsRoute
   AppSearchRoute: typeof AppSearchRoute
   AppSleepRoute: typeof AppSleepRoute
+  AppWorkoutHistoryRoute: typeof AppWorkoutHistoryRoute
   AppWorkoutsRoute: typeof AppWorkoutsRoute
   AppWorkoutsLogRoute: typeof AppWorkoutsLogRoute
 }
@@ -399,12 +439,14 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppFocusRoute: AppFocusRoute,
   AppHealthyLivingRoute: AppHealthyLivingRoute,
+  AppMealHistoryRoute: AppMealHistoryRoute,
   AppMentalRoute: AppMentalRoute,
   AppPlansRoute: AppPlansRoute,
   AppProfileRoute: AppProfileRoute,
   AppRecommendationsRoute: AppRecommendationsRoute,
   AppSearchRoute: AppSearchRoute,
   AppSleepRoute: AppSleepRoute,
+  AppWorkoutHistoryRoute: AppWorkoutHistoryRoute,
   AppWorkoutsRoute: AppWorkoutsRoute,
   AppWorkoutsLogRoute: AppWorkoutsLogRoute,
 }

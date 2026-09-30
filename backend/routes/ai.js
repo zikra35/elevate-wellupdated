@@ -1,12 +1,12 @@
 const express = require('express');
 const authMiddleware = require('../middleware/auth');
 const axios = require('axios');
+const sage = require('../services/sage');
 
 const router = express.Router();
 
 // Python ML Service configuration
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:5001';
-const SAGE_SERVICE_URL = process.env.SAGE_SERVICE_URL || 'http://localhost:5002';
 const ML_SERVICE_TIMEOUT = 10000; // 10 seconds timeout
 
 // Global model ID - ONE model for all users
@@ -33,33 +33,6 @@ async function checkMLServiceHealth() {
 
 // Perform initial health check
 checkMLServiceHealth();
-
-// System prompt for Sage - the AI therapist
-const SAGE_SYSTEM_PROMPT = `You are Sage, a compassionate and empathetic AI wellness companion. Your role is to provide supportive, non-judgmental listening and guidance for mental health and wellness topics.
-
-Important guidelines:
-- You are NOT a licensed therapist and cannot provide medical diagnosis or treatment
-- Always encourage users to seek professional help for serious mental health concerns
-- Be warm, supportive, and genuinely interested in the user's wellbeing
-- Ask thoughtful follow-up questions to help users explore their feelings
-- Provide practical coping strategies and wellness suggestions when appropriate
-- Keep responses concise and conversational (2-3 sentences typically)
-- Use a calm, reassuring tone
-- If a user mentions crisis or self-harm, immediately suggest they contact emergency services or a crisis hotline`;
-
-// Mock response generator for when ML service is unavailable
-function generateMockTherapistResponse(userMessage) {
-  const responses = [
-    "That sounds like something many people experience. Can you tell me more about what's been on your mind?",
-    "I hear you. It's important to acknowledge what you're feeling. What do you think might help you feel better right now?",
-    "Thank you for sharing that with me. How has this been affecting your daily life?",
-    "That's a valid feeling. Have you tried any coping strategies that have worked for you in the past?",
-    "I appreciate your openness. What would support look like for you right now?",
-    "It sounds like you're going through something challenging. Remember to be kind to yourself during this time.",
-    "That's an interesting perspective. What do you think would be a helpful next step?",
-  ];
-  return responses[Math.floor(Math.random() * responses.length)];
-}
 
 // Mock suggestions generator
 function generateMockSuggestions(profile, phase, mood, anxietyLevel) {
@@ -138,33 +111,6 @@ async function callMLService(endpoint, method = 'GET', data = null) {
   }
 }
 
-// Helper function to call Sage chatbot service with error handling
-async function callSageService(endpoint, method = 'GET', data = null) {
-  try {
-    const config = {
-      method,
-      url: `${SAGE_SERVICE_URL}${endpoint}`,
-      timeout: ML_SERVICE_TIMEOUT,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    };
-
-    if (data) {
-      config.data = data;
-    }
-
-    console.log(`[Sage Service] ${method} ${endpoint}`);
-    const response = await axios(config);
-    console.log(`[Sage Service] ✅ Success`);
-    
-    return { success: true, data: response.data };
-  } catch (error) {
-    console.error(`[Sage Service] ❌ Error calling ${endpoint}:`, error.message);
-    return { success: false, error: error.message };
-  }
-}
-
 /**
  * Get user's actual data from MongoDB for personalization
  */
@@ -176,7 +122,7 @@ async function getUserDataForPersonalization(userId) {
     }
 
     const Workout = require('../models/Workout');
-    const Meal = require('../models/Meal');
+    const Meal = require('../models/MealLog');
     const SleepLog = require('../models/SleepLog');
     const MentalHealthLog = require('../models/MentalHealthLog');
     const CycleLog = require('../models/CycleLog');
@@ -274,63 +220,22 @@ function personalizeRecommendations(recommendations, userData) {
   return personalized;
 }
 
-// POST /api/ai/chat - Chat with Sage (AI therapist)
+// POST /api/ai/chat - Chat with Sage (built into this backend, see services/sage.js)
 router.post('/chat', authMiddleware, async (req, res) => {
   try {
     const { messages, conversationId } = req.body;
-    const userId = req.user?.id || 'anonymous';
 
-    if (!messages || !Array.isArray(messages)) {
+    if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ message: 'Messages array is required' });
     }
 
-    // If no conversation ID, start a new one with Sage chatbot
-    let convId = conversationId;
-    if (!convId) {
-      const startResult = await callSageService('/api/chat/start', 'POST', {
-        user_id: userId,
-      });
-
-      if (!startResult.success) {
-        console.warn('Failed to start conversation with Sage service, using mock response');
-        const lastUserMessage = messages[messages.length - 1]?.content || '';
-        const mockReply = generateMockTherapistResponse(lastUserMessage);
-        return res.json({ reply: mockReply, source: 'mock' });
-      }
-
-      convId = startResult.data.conversation_id;
-    }
-
-    // Get the last user message
     const lastUserMessage = messages[messages.length - 1];
-    if (!lastUserMessage || lastUserMessage.role !== 'user') {
-      return res.status(400).json({ message: 'Last message must be from user' });
+    if (!lastUserMessage || lastUserMessage.role !== 'user' || !String(lastUserMessage.content || '').trim()) {
+      return res.status(400).json({ message: 'Last message must be a non-empty user message' });
     }
 
-    // Send message to Sage chatbot service
-    const messageResult = await callSageService(`/api/chat/message/${convId}`, 'POST', {
-      message: lastUserMessage.content,
-    });
-
-    if (messageResult.success) {
-      const reply = messageResult.data.reply || messageResult.data.response || 'I appreciate you sharing that with me.';
-      return res.json({ 
-        reply, 
-        conversationId: convId,
-        source: 'sage-chatbot',
-        modelType: 'ultimate-wellness-coach'
-      });
-    }
-
-    // Fallback to mock if Sage service fails
-    console.warn('Sage service unavailable, using mock response');
-    const mockReply = generateMockTherapistResponse(lastUserMessage.content);
-    res.json({ 
-      reply: mockReply, 
-      conversationId: convId,
-      source: 'mock'
-    });
-
+    const result = await sage.chat({ userId: req.userId, conversationId, messages });
+    res.json(result);
   } catch (error) {
     console.error('Error in /chat endpoint:', error);
     res.status(500).json({ message: 'Server error' });

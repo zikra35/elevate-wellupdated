@@ -22,21 +22,47 @@ const seedMentalHealth = require('./seeds/mentalHealth');
 
 const app = express();
 
+// CORS: fixed origins + any *.vercel.app deployment + extra origins from
+// CORS_ORIGINS (comma-separated, e.g. "https://elevatewell.com,https://www.elevatewell.com")
+const allowedOrigins = new Set([
+  'https://tanstack-start-app.zeynabiqbal225.workers.dev',
+  'https://elevate-well-pi.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:8080',
+  ...(process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/$/, ''))
+    .filter(Boolean),
+]);
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true; // same-origin, curl, health checks
+  if (allowedOrigins.has(origin)) return true;
+  try {
+    const { protocol, hostname } = new URL(origin);
+    return protocol === 'https:' && hostname.endsWith('.vercel.app');
+  } catch {
+    return false;
+  }
+}
+
 // Middleware
 app.use(cors({
-  origin: [
-    'https://tanstack-start-app.zeynabiqbal225.workers.dev',
-    'https://elevate-well-pi.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://localhost:8080'
-  ],
+  origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),
   credentials: true
 }));
 app.use(express.json());
 
 // MongoDB Connection
 let mongoConnected = false;
+
+if (!process.env.MONGODB_URI) {
+  console.warn('MONGODB_URI is not set - set it in Railway Variables (or backend/.env locally)');
+}
+if (!process.env.JWT_SECRET) {
+  console.warn('JWT_SECRET is not set - login and signup will fail until it is set');
+}
 
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
@@ -114,7 +140,7 @@ app.use('/api/search', require('./routes/search'));
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'Server is running' });
+  res.json({ status: 'Server is running', database: mongoConnected ? 'connected' : 'disconnected' });
 });
 
 // Error handling middleware
@@ -125,6 +151,7 @@ app.use((err, req, res, next) => {
 
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '127.0.0.1', () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+// Bind to 0.0.0.0 so Railway (and other hosts) can reach the server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
 });

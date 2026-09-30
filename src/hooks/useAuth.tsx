@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { API_BASE_URL } from "@/lib/api";
 
 type User = {
   id: string;
@@ -28,7 +29,6 @@ const Ctx = createContext<AuthCtx>({
   refreshSession: async () => null,
 });
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<{ user: User; token: string } | null>(null);

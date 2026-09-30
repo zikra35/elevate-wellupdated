@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Menu, X, Home, Dumbbell, Moon, Brain, User, LogOut, Sparkles, Droplets, Leaf, Calendar, Sun, Utensils, History, Activity, Zap } from "lucide-react";
+import { Menu, X, Home, Dumbbell, Moon, Brain, User, LogOut, Sparkles, Droplets, Leaf, Calendar, Sun, Utensils, History, Activity, Zap, type LucideIcon } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useTheme } from "@/hooks/useTheme";
@@ -11,19 +12,39 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { apiFetch, localDateString, tzOffset } from "@/lib/api";
 
-const NAV_WELLNESS = [
+type NavItem = {
+  to: "/dashboard" | "/workouts" | "/healthy-living" | "/mental" | "/sleep" | "/cycle" | "/search" | "/profile" | "/meal-history" | "/workout-history";
+  label: string;
+  icon: LucideIcon;
+  badge?: string;
+};
+
+const NAV_WELLNESS: NavItem[] = [
   { to: "/dashboard", label: "Home", icon: Home },
   { to: "/workouts", label: "Workouts", icon: Dumbbell },
   { to: "/healthy-living", label: "Healthy Living", icon: Leaf },
   { to: "/mental", label: "Mental Health", icon: Brain },
   { to: "/sleep", label: "Sleep", icon: Moon, badge: "Live" },
-] as const;
+];
 
-const NAV_TOOLS = [
+const NAV_HISTORY: NavItem[] = [
+  { to: "/meal-history", label: "Meal History", icon: History },
+  { to: "/workout-history", label: "Workout History", icon: Activity },
+];
+
+const NAV_TOOLS: NavItem[] = [
   { to: "/search", label: "Path Finder", icon: Zap },
   { to: "/profile", label: "Profile", icon: User },
-] as const;
+];
+
+const DEFAULT_WORKOUTS = [
+  { name: "Strength Training", duration: 45 },
+  { name: "Cardio", duration: 30 },
+  { name: "Yoga", duration: 60 },
+  { name: "Stretching", duration: 20 },
+];
 
 export function AppShell() {
   const { user, loading, logout } = useAuth();
@@ -31,21 +52,15 @@ export function AppShell() {
   const { theme, toggle } = useTheme();
   const [open, setOpen] = useState(false);
   const [mealDialogOpen, setMealDialogOpen] = useState(false);
-  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [workoutDialogOpen, setWorkoutDialogOpen] = useState(false);
-  const [workoutHistoryDialogOpen, setWorkoutHistoryDialogOpen] = useState(false);
   const [mealName, setMealName] = useState("");
   const [mealTime, setMealTime] = useState("");
   const [mealType, setMealType] = useState("morning");
   const [savingMeal, setSavingMeal] = useState(false);
-  const [mealHistory, setMealHistory] = useState<any[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
   const [planWorkouts, setPlanWorkouts] = useState<any[]>([]);
   const [selectedWorkout, setSelectedWorkout] = useState("");
   const [workoutDuration, setWorkoutDuration] = useState("");
   const [savingWorkout, setSavingWorkout] = useState(false);
-  const [workoutHistory, setWorkoutHistory] = useState<any[]>([]);
-  const [loadingWorkoutHistory, setLoadingWorkoutHistory] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -59,36 +74,30 @@ export function AppShell() {
 
   useEffect(() => { setOpen(false); }, [location.pathname]);
 
-  const nav = (profile?.gender === "female")
+  const nav: NavItem[] = (profile?.gender === "female")
     ? [
         ...NAV_WELLNESS.slice(0, 3),
-        { to: "/cycle", label: "Cycle", icon: Droplets } as const,
+        { to: "/cycle", label: "Cycle", icon: Droplets },
         ...NAV_WELLNESS.slice(3),
       ]
     : NAV_WELLNESS;
 
   async function handleLogMeal() {
     if (!mealName.trim() || !mealTime) {
-      alert("Please fill in all fields");
+      toast.error("Please enter a meal name and time");
       return;
     }
 
     try {
       setSavingMeal(true);
-      const token = localStorage.getItem("authToken");
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
-      const response = await fetch(`${API_BASE_URL}/diet/log-meal`, {
+      const response = await apiFetch("/diet/log-meal", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
-          name: mealName,
+          name: mealName.trim(),
           time: mealTime,
           type: mealType,
-          date: new Date().toISOString().split('T')[0],
+          date: localDateString(),
+          tzOffset: tzOffset(),
         }),
       });
 
@@ -97,90 +106,34 @@ export function AppShell() {
         setMealTime("");
         setMealType("morning");
         setMealDialogOpen(false);
-        alert("Meal logged successfully!");
-        // Refresh history
-        loadMealHistory();
-        // Trigger a page refresh for Plans page
-        window.dispatchEvent(new Event('mealLogged'));
+        toast.success("Meal logged", {
+          action: { label: "View history", onClick: () => navigate({ to: "/meal-history" }) },
+        });
+        // Let other pages (Plans, Meal History) refresh
+        window.dispatchEvent(new Event("mealLogged"));
       } else {
-        alert("Failed to log meal");
+        const data = await response.json().catch(() => ({}));
+        toast.error(data.message || "Couldn't log that meal. Please try again.");
       }
     } catch (error) {
       console.error("Error logging meal:", error);
-      alert("Error logging meal");
+      toast.error("Couldn't reach the server. Check your connection and try again.");
     } finally {
       setSavingMeal(false);
     }
   }
 
-  async function loadMealHistory() {
-    try {
-      setLoadingHistory(true);
-      const token = localStorage.getItem("authToken");
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
-      const response = await fetch(`${API_BASE_URL}/diet/meal-history`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setMealHistory(data.meals || []);
-      }
-    } catch (error) {
-      console.error("Error loading meal history:", error);
-    } finally {
-      setLoadingHistory(false);
-    }
-  }
-
-  const handleOpenHistory = () => {
-    setHistoryDialogOpen(true);
-    loadMealHistory();
-  }
-
   async function loadPlanWorkouts() {
     try {
-      const token = localStorage.getItem("authToken");
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
-      const response = await fetch(`${API_BASE_URL}/workouts/active-workouts`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const workouts = data.workouts || [];
-        setPlanWorkouts(workouts);
-        if (workouts.length > 0) {
-          setSelectedWorkout(workouts[0].name);
-        }
-      } else {
-        // Fallback to default workouts
-        const defaultWorkouts = [
-          { name: 'Strength Training', duration: 45 },
-          { name: 'Cardio', duration: 30 },
-          { name: 'Yoga', duration: 60 },
-          { name: 'Stretching', duration: 20 }
-        ];
-        setPlanWorkouts(defaultWorkouts);
-        setSelectedWorkout(defaultWorkouts[0].name);
-      }
+      const response = await apiFetch("/workouts/active-workouts");
+      const workouts = response.ok ? ((await response.json()).workouts || []) : [];
+      const list = workouts.length > 0 ? workouts : DEFAULT_WORKOUTS;
+      setPlanWorkouts(list);
+      setSelectedWorkout(list[0].name);
     } catch (error) {
       console.error("Error loading plan workouts:", error);
-      // Fallback to default workouts
-      const defaultWorkouts = [
-        { name: 'Strength Training', duration: 45 },
-        { name: 'Cardio', duration: 30 },
-        { name: 'Yoga', duration: 60 },
-        { name: 'Stretching', duration: 20 }
-      ];
-      setPlanWorkouts(defaultWorkouts);
-      setSelectedWorkout(defaultWorkouts[0].name);
+      setPlanWorkouts(DEFAULT_WORKOUTS);
+      setSelectedWorkout(DEFAULT_WORKOUTS[0].name);
     }
   }
 
@@ -190,26 +143,21 @@ export function AppShell() {
   }
 
   async function handleLogWorkout() {
-    if (!selectedWorkout || !workoutDuration) {
-      alert("Please select a workout and enter duration");
+    const minutes = parseInt(workoutDuration, 10);
+    if (!selectedWorkout || !minutes || minutes <= 0) {
+      toast.error("Please choose a workout and enter the minutes");
       return;
     }
 
     try {
       setSavingWorkout(true);
-      const token = localStorage.getItem("authToken");
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
-      const response = await fetch(`${API_BASE_URL}/workouts/log-workout`, {
+      const response = await apiFetch("/workouts/log-workout", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           name: selectedWorkout,
-          duration: parseInt(workoutDuration),
-          date: new Date().toISOString().split('T')[0],
+          duration: minutes,
+          date: localDateString(),
+          tzOffset: tzOffset(),
         }),
       });
 
@@ -217,47 +165,21 @@ export function AppShell() {
         setSelectedWorkout("");
         setWorkoutDuration("");
         setWorkoutDialogOpen(false);
-        alert("Workout logged successfully!");
-        loadWorkoutHistory();
-        // Trigger a page refresh for Plans page
-        window.dispatchEvent(new Event('workoutLogged'));
+        toast.success("Workout logged", {
+          action: { label: "View history", onClick: () => navigate({ to: "/workout-history" }) },
+        });
+        // Let other pages (Plans, Workout History) refresh
+        window.dispatchEvent(new Event("workoutLogged"));
       } else {
-        alert("Failed to log workout");
+        const data = await response.json().catch(() => ({}));
+        toast.error(data.message || "Couldn't log that workout. Please try again.");
       }
     } catch (error) {
       console.error("Error logging workout:", error);
-      alert("Error logging workout");
+      toast.error("Couldn't reach the server. Check your connection and try again.");
     } finally {
       setSavingWorkout(false);
     }
-  }
-
-  async function loadWorkoutHistory() {
-    try {
-      setLoadingWorkoutHistory(true);
-      const token = localStorage.getItem("authToken");
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
-      const response = await fetch(`${API_BASE_URL}/workouts/workout-history`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setWorkoutHistory(data.workouts || []);
-      }
-    } catch (error) {
-      console.error("Error loading workout history:", error);
-    } finally {
-      setLoadingWorkoutHistory(false);
-    }
-  }
-
-  const handleOpenWorkoutHistory = () => {
-    setWorkoutHistoryDialogOpen(true);
-    loadWorkoutHistory();
   }
 
   async function handleLogout() {
@@ -268,10 +190,17 @@ export function AppShell() {
   return (
     <div className="min-h-screen bg-background">
       {/* Sidebar overlay */}
-      {open && <div className="fixed inset-0 z-40 bg-foreground/30 backdrop-blur-sm" onClick={() => setOpen(false)} />}
+      <div
+        aria-hidden="true"
+        className={cn(
+          "fixed inset-0 z-40 bg-foreground/30 backdrop-blur-sm transition-opacity duration-300",
+          open ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+        onClick={() => setOpen(false)}
+      />
 
       <aside className={cn(
-        "fixed left-0 top-0 z-50 h-full w-72 border-r bg-sidebar text-sidebar-foreground transition-transform",
+        "fixed left-0 top-0 z-50 flex h-full w-72 flex-col border-r bg-sidebar text-sidebar-foreground shadow-[var(--shadow-soft)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
         open ? "translate-x-0" : "-translate-x-full",
       )}>
         <div className="flex items-center justify-between p-5">
@@ -283,7 +212,7 @@ export function AppShell() {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="px-3 py-2">
+        <nav className="flex-1 overflow-y-auto px-3 py-2">
           {/* WELLNESS Section */}
           <div className="mb-4">
             <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/60 mb-2">
@@ -311,6 +240,25 @@ export function AppShell() {
             })}
           </div>
 
+          {/* HISTORY Section */}
+          <div className="mb-4">
+            <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/60 mb-2">
+              History
+            </div>
+            {NAV_HISTORY.map((n) => {
+              const active = location.pathname.startsWith(n.to);
+              return (
+                <Link key={n.to} to={n.to}
+                  className={cn(
+                    "mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
+                    active ? "bg-sidebar-primary text-sidebar-primary-foreground" : "hover:bg-sidebar-accent",
+                  )}>
+                  <n.icon className="h-4 w-4" /> {n.label}
+                </Link>
+              );
+            })}
+          </div>
+
           {/* TOOLS Section */}
           <div>
             <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/60 mb-2">
@@ -330,7 +278,7 @@ export function AppShell() {
             })}
           </div>
         </nav>
-        <div className="absolute bottom-0 left-0 right-0 border-t p-3">
+        <div className="border-t p-3">
           <button onClick={handleLogout} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-sidebar-accent">
             <LogOut className="h-4 w-4" /> Sign out
           </button>
@@ -349,94 +297,25 @@ export function AppShell() {
             <span className="font-display text-sm font-bold tracking-wider">ELEVATE WELL</span>
           </Link>
         </div>
-        <div className="flex items-center gap-3">
-          <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
-            <DialogTrigger asChild>
-              <button
-                onClick={handleOpenHistory}
-                aria-label="View meal history"
-                className="grid h-10 w-10 place-items-center rounded-lg hover:bg-muted transition"
-                title="View meal history"
-              >
-                <History className="h-5 w-5" />
-              </button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Meal History</DialogTitle>
-                <DialogDescription>View all your logged meals</DialogDescription>
-              </DialogHeader>
-              <div className="max-h-[400px] overflow-y-auto">
-                {loadingHistory ? (
-                  <div className="text-center py-8 text-muted-foreground">Loading...</div>
-                ) : mealHistory.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">No meals logged yet</div>
-                ) : (
-                  <div className="space-y-3">
-                    {mealHistory.map((meal, index) => (
-                      <div key={index} className="border rounded-lg p-3 bg-muted/50">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-semibold">{meal.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {meal.time} • {meal.type}
-                            </p>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(meal.date).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog open={workoutHistoryDialogOpen} onOpenChange={setWorkoutHistoryDialogOpen}>
-            <DialogTrigger asChild>
-              <button
-                onClick={handleOpenWorkoutHistory}
-                aria-label="View workout history"
-                className="grid h-10 w-10 place-items-center rounded-lg hover:bg-muted transition"
-                title="View workout history"
-              >
-                <Activity className="h-5 w-5" />
-              </button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Workout History</DialogTitle>
-                <DialogDescription>View all your logged workouts</DialogDescription>
-              </DialogHeader>
-              <div className="max-h-[400px] overflow-y-auto">
-                {loadingWorkoutHistory ? (
-                  <div className="text-center py-8 text-muted-foreground">Loading...</div>
-                ) : workoutHistory.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">No workouts logged yet</div>
-                ) : (
-                  <div className="space-y-3">
-                    {workoutHistory.map((workout, index) => (
-                      <div key={index} className="border rounded-lg p-3 bg-muted/50">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-semibold">{workout.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {workout.duration} minutes
-                            </p>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(workout.date).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Link
+            to="/meal-history"
+            aria-label="Meal history"
+            title="Meal history"
+            className="hidden h-10 w-10 place-items-center rounded-lg hover:bg-muted sm:grid"
+            activeProps={{ className: "bg-muted text-primary" }}
+          >
+            <History className="h-5 w-5" />
+          </Link>
+          <Link
+            to="/workout-history"
+            aria-label="Workout history"
+            title="Workout history"
+            className="hidden h-10 w-10 place-items-center rounded-lg hover:bg-muted sm:grid"
+            activeProps={{ className: "bg-muted text-primary" }}
+          >
+            <Activity className="h-5 w-5" />
+          </Link>
 
           <Dialog open={workoutDialogOpen} onOpenChange={setWorkoutDialogOpen}>
             <DialogTrigger asChild>
@@ -476,6 +355,7 @@ export function AppShell() {
                   <Input
                     id="workout-duration"
                     type="number"
+                    min={1}
                     placeholder="e.g., 30"
                     value={workoutDuration}
                     onChange={(e) => setWorkoutDuration(e.target.value)}
@@ -595,7 +475,10 @@ export function AppShell() {
       </header>
 
       <main className="px-4 py-6 md:px-8 md:py-8">
-        <Outlet />
+        {/* Keyed by path so every page change gets the same enter transition */}
+        <div key={location.pathname} className="page-enter">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

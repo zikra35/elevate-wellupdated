@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { API_BASE_URL } from "@/lib/api";
 
 interface Workout {
   id: string;
@@ -55,7 +56,6 @@ export function usePlans() {
       setError(null);
 
       const token = localStorage.getItem('authToken');
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
       const res = await fetch(`${API_BASE_URL}/plans/generate-suggestions`, {
         method: 'POST',
@@ -92,7 +92,6 @@ export function usePlans() {
         }
 
         const token = localStorage.getItem('authToken');
-        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
         const res = await fetch(`${API_BASE_URL}/plans`, {
           method: 'POST',

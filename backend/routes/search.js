@@ -6,8 +6,31 @@ const MealLog = require('../models/MealLog');
 const WorkoutLog = require('../models/WorkoutLog');
 const SleepLog = require('../models/SleepLog');
 const JournalEntry = require('../models/JournalEntry');
+const authMiddleware = require('../middleware/auth');
+const { parseTzOffset, localToday, localDayStartInstant } = require('../utils/dates');
 
 const searchEngine = new WellnessSearchEngine();
+
+// Every search route is per-user
+router.use(authMiddleware);
+
+/**
+ * Load the user's logs for their local "today".
+ * MealLog/WorkoutLog use `loggedAt`, SleepLog uses `date`, JournalEntry uses `createdAt`.
+ */
+async function getTodayLogs(userId, tzOffsetRaw) {
+  const tzOffset = parseTzOffset(tzOffsetRaw);
+  const startOfToday = localDayStartInstant(localToday(tzOffset), tzOffset);
+
+  const [meals, workouts, sleepLogs, journals] = await Promise.all([
+    MealLog.find({ userId, loggedAt: { $gte: startOfToday } }),
+    WorkoutLog.find({ userId, loggedAt: { $gte: startOfToday } }),
+    SleepLog.find({ userId, date: { $gte: startOfToday } }).sort({ date: 1 }),
+    JournalEntry.find({ userId, createdAt: { $gte: startOfToday } }),
+  ]);
+
+  return { meals, workouts, sleepLogs, journals };
+}
 
 /**
  * GET /api/search/current-state
@@ -20,34 +43,15 @@ router.get('/current-state', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Get today's logs
-    const meals = await MealLog.find({
+    const { meals, workouts, sleepLogs, journals } = await getTodayLogs(
       userId,
-      createdAt: { $gte: today },
-    });
-
-    const workouts = await WorkoutLog.find({
-      userId,
-      createdAt: { $gte: today },
-    });
-
-    const sleepLogs = await SleepLog.find({
-      userId,
-      createdAt: { $gte: today },
-    });
-
-    const journals = await JournalEntry.find({
-      userId,
-      createdAt: { $gte: today },
-    });
+      req.query.tzOffset ?? req.body?.tzOffset
+    );
 
     // Calculate current state
     const nutrition = Math.min(100, meals.length * 25); // 4 meals = 100
     const physical = Math.min(100, workouts.length * 50); // 2 workouts = 100
-    const sleep = sleepLogs.length > 0 ? Math.min(100, (sleepLogs[sleepLogs.length - 1].duration_hours / 8) * 100) : 0;
+    const sleep = sleepLogs.length > 0 ? Math.min(100, ((sleepLogs[sleepLogs.length - 1].duration_hours || 0) / 8) * 100) : 0;
     const mental = Math.min(100, journals.length * 50); // 2 journals = 100
 
     const currentState = {
@@ -68,7 +72,7 @@ router.get('/current-state', async (req, res) => {
       logsToday: {
         meals: meals.length,
         workouts: workouts.length,
-        sleepHours: sleepLogs.length > 0 ? sleepLogs[sleepLogs.length - 1].duration_hours : 0,
+        sleepHours: sleepLogs.length > 0 ? (sleepLogs[sleepLogs.length - 1].duration_hours || 0) : 0,
         journals: journals.length,
       },
     });
@@ -107,34 +111,15 @@ router.post('/find-path', async (req, res) => {
       return res.status(400).json({ error: 'algorithm must be BFS or A*' });
     }
 
-    // Get current state
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const meals = await MealLog.find({
+    const { meals, workouts, sleepLogs, journals } = await getTodayLogs(
       userId,
-      createdAt: { $gte: today },
-    });
-
-    const workouts = await WorkoutLog.find({
-      userId,
-      createdAt: { $gte: today },
-    });
-
-    const sleepLogs = await SleepLog.find({
-      userId,
-      createdAt: { $gte: today },
-    });
-
-    const journals = await JournalEntry.find({
-      userId,
-      createdAt: { $gte: today },
-    });
+      req.query.tzOffset ?? req.body?.tzOffset
+    );
 
     const initialState = {
       nutrition: Math.min(100, meals.length * 25),
       physical: Math.min(100, workouts.length * 50),
-      sleep: sleepLogs.length > 0 ? Math.min(100, (sleepLogs[sleepLogs.length - 1].duration_hours / 8) * 100) : 0,
+      sleep: sleepLogs.length > 0 ? Math.min(100, ((sleepLogs[sleepLogs.length - 1].duration_hours || 0) / 8) * 100) : 0,
       mental: Math.min(100, journals.length * 50),
     };
 
@@ -349,34 +334,15 @@ router.post('/compare-algorithms', async (req, res) => {
       return res.status(400).json({ error: 'goalState is required' });
     }
 
-    // Get current state
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const meals = await MealLog.find({
+    const { meals, workouts, sleepLogs, journals } = await getTodayLogs(
       userId,
-      createdAt: { $gte: today },
-    });
-
-    const workouts = await WorkoutLog.find({
-      userId,
-      createdAt: { $gte: today },
-    });
-
-    const sleepLogs = await SleepLog.find({
-      userId,
-      createdAt: { $gte: today },
-    });
-
-    const journals = await JournalEntry.find({
-      userId,
-      createdAt: { $gte: today },
-    });
+      req.query.tzOffset ?? req.body?.tzOffset
+    );
 
     const initialState = {
       nutrition: Math.min(100, meals.length * 25),
       physical: Math.min(100, workouts.length * 50),
-      sleep: sleepLogs.length > 0 ? Math.min(100, (sleepLogs[sleepLogs.length - 1].duration_hours / 8) * 100) : 0,
+      sleep: sleepLogs.length > 0 ? Math.min(100, ((sleepLogs[sleepLogs.length - 1].duration_hours || 0) / 8) * 100) : 0,
       mental: Math.min(100, journals.length * 50),
     };
 
